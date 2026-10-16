@@ -1,3 +1,5 @@
+# test_tensor_layout.py
+
 import pytest
 import torch
 
@@ -11,16 +13,14 @@ def x(request) -> torch.Tensor:
     return torch.arange(24, device=request.param).reshape(2, 3, 4)
 
 
-@pytest.mark.parametrize("device", DEVICES)
-def test_shape(x: torch.Tensor, device):
+def test_shape(x: torch.Tensor):
     x_transposed = x.transpose(1, 2)
 
     assert x.shape == torch.Size([2, 3, 4])
     assert x_transposed.shape == torch.Size([2, 4, 3])
 
 
-@pytest.mark.parametrize("device", DEVICES)
-def test_stride(x: torch.Tensor, device):
+def test_stride(x: torch.Tensor):
     x_transposed = x.transpose(1, 2)
 
     assert x.stride() == (12, 4, 1)
@@ -47,15 +47,13 @@ def test_stride(x: torch.Tensor, device):
     assert not x_transposed_contiguous[0, 0, 0] == x_transposed[0, 0, 0]
 
 
-@pytest.mark.parametrize("device", DEVICES)
-def test_is_contiguous(x: torch.Tensor, device):
+def test_is_contiguous(x: torch.Tensor):
     x_transposed = x.transpose(1, 2)
     assert x.is_contiguous()
     assert not x_transposed.is_contiguous()
 
 
-@pytest.mark.parametrize("device", DEVICES)
-def test_view(x: torch.Tensor, device):
+def test_view(x: torch.Tensor):
     x_transposed = x.transpose(1, 2)
     # x_transposed.shape is (2, 4, 3)
     # x_transposed.stride is (12, 1, 4)
@@ -88,7 +86,7 @@ def test_view(x: torch.Tensor, device):
     # Split a dimension and insert singleton dims in the split dimension
     d = x_transposed.view(2, 2, 1, 1, 2, 3)
     # stride => (12, ?, ?, ?, ?, 4) keep the strides of original dims
-    # stride => (12, ?, ?, ?, 1, 4) put the stride of the split dim for the new rightmost dim
+    # stride => (12, ?, ?, ?, 1, 4) put the stride of the split dim for rightmost dim
     # stride => (12, ?, ?, 2, 1, 4) next dim's size * next dim's stride
     # stride => (12, ?, 2, 2, 1, 4) next dim's size * next dim's stride
     # stride => (12, 2, 2, 2, 1, 4) next dim's size * next dim's stride
