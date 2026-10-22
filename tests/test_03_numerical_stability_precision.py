@@ -77,7 +77,8 @@ def cross_entropy_from_logits(
     return per_sample_loss.mean()
 
 
-# Works for both normalized and unnormalized targets
+# Works for both normalized and unnormalized targets.
+# Unnormalized targets are not valid probability distributions.
 # Reduces cancellation and rounding errors by removing large common logit offsets before
 # exponentiation and weighted summation.
 def stable_cross_entropy_from_logits(
@@ -134,6 +135,27 @@ def test_cross_entropy(device):
 
 
 @pytest.mark.parametrize("device", DEVICES)
+def test_invariance(device):
+    logits, targets = initialize_logits_targets(device)
+    logits_shifted = logits - logits.max(dim=-1, keepdim=True).values
+
+    # Softmax is invariant to shifts in logits
+    softmax = stable_softmax(logits)
+    softmax_shifted = stable_softmax(logits_shifted)
+    torch.testing.assert_close(softmax, softmax_shifted)
+
+    # Logsumexp is NOT invariant to shifts in logits
+    logsumexp = stable_logsumexp(logits)
+    logsumexp_shifted = stable_logsumexp(logits_shifted)
+    torch.testing.assert_close(logsumexp, logsumexp_shifted + logits.max(dim=-1).values)
+
+    # Cross-entropy loss is invariant to shifts in logits
+    cross_entropy_loss = cross_entropy_from_logits(logits, targets)
+    cross_entropy_loss_shifted = cross_entropy_from_logits(logits_shifted, targets)
+    torch.testing.assert_close(cross_entropy_loss, cross_entropy_loss_shifted)
+
+
+@pytest.mark.parametrize("device", DEVICES)
 def test_noncontiguous_dimensions(device):
     x = torch.randn((3, 4, 5), device=device)
     x = x.transpose(0, 1)
@@ -153,57 +175,96 @@ def test_noncontiguous_dimensions(device):
 
 
 @pytest.mark.parametrize("device", DEVICES)
-def test_cross_entropy_precision(device):
-    logits = torch.tensor([[1_000_000.0, 999_999.0]], device=device)
-    targets = torch.tensor([[0.2, 0.8]], device=device)  # normalized soft targets
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_cross_entropy_precision(device, dtype):
+    logits = torch.tensor([[1_000_000.0, 999_999.0]], device=device, dtype=dtype)
+    targets = torch.tensor(
+        [[0.2, 0.8]], device=device, dtype=dtype
+    )  # normalized soft targets
 
-    target_logits = torch.sum(targets * logits, dim=-1, dtype=torch.float64)
+    target_logits = torch.sum(targets * logits, dim=-1)
 
-    # target_logits must have output 999_999.2
-    with pytest.raises(AssertionError):
+    # target_logits must output 999_999.2
+    if dtype == torch.float64:
         torch.testing.assert_close(
             target_logits,
-            torch.tensor([999_999.2], device=device, dtype=torch.float64),
+            torch.tensor([999_999.2], device=device, dtype=dtype),
             rtol=1e-9,
             atol=1e-9,
         )
-    # but instead results in 999_999.1875
-    torch.testing.assert_close(
-        target_logits,
-        torch.tensor([999_999.1875], device=device, dtype=torch.float64),
-        rtol=1e-9,
-        atol=1e-9,
-    )
+    # but instead results in 999_999.1875 in float32
+    elif dtype == torch.float32:
+        torch.testing.assert_close(
+            target_logits,
+            torch.tensor([999_999.1875], device=device, dtype=dtype),
+            rtol=1e-9,
+            atol=1e-9,
+        )
 
-    # Followingly logits - targets must have output
-    with pytest.raises(AssertionError):
+    # Followingly logits - targets must have output [0.8, -0.2]
+    if dtype == torch.float64:
         torch.testing.assert_close(
             logits - target_logits,
-            torch.tensor([[0.8, -0.2]], device=device, dtype=torch.float64),
+            torch.tensor([[0.8, -0.2]], device=device, dtype=dtype),
             rtol=1e-9,
             atol=1e-9,
         )
-    # but instead results in [0.8125, -0.1875]
-    torch.testing.assert_close(
-        logits - target_logits,
-        torch.tensor([[0.8125, -0.1875]], device=device, dtype=torch.float64),
-        rtol=1e-9,
-        atol=1e-9,
-    )
+    # but instead results in [0.8125, -0.1875] in float32
+    elif dtype == torch.float32:
+        torch.testing.assert_close(
+            logits - target_logits,
+            torch.tensor([[0.8125, -0.1875]], device=device, dtype=dtype),
+            rtol=1e-9,
+            atol=1e-9,
+        )
 
-    # It means logsumexp will receive this rounding error and
+    # It means logsumexp will receive this rounding error when in float32 and
     # resulting cross-entropy loss will be impacted by this error
     actual = cross_entropy_from_logits(logits, targets)
     expected = torch.nn.functional.cross_entropy(logits, targets)
-    with pytest.raises(AssertionError):
+    if dtype == torch.float64:
         torch.testing.assert_close(actual, expected)
+    elif dtype == torch.float32:
+        with pytest.raises(AssertionError):
+            torch.testing.assert_close(actual, expected)
 
     actual = stable_cross_entropy_from_logits(logits, targets)
     torch.testing.assert_close(actual, expected)
 
 
 @pytest.mark.parametrize("device", DEVICES)
-def test_cross_entropy_with_targets_not_adding_up_to_1(device):
+def test_fp16_vs_bf16(device):
+    logits = torch.tensor(
+        [[1000.0, 1001.0, 1002.0]], dtype=torch.float64, device=device
+    )
+
+    logits_float16 = logits.to(torch.float16)
+    logits_bfloat16 = logits.to(torch.bfloat16)
+
+    # logits_float16 represented in float16 is able
+    # to keep orecision for values in the order of 1000
+    torch.testing.assert_close(logits_float16.to(torch.float64), logits)
+    # logits_bfloat16 represented in bfloat16 is already NOT able
+    # to keep orecision for values in the order of 1000
+    with pytest.raises(AssertionError):
+        torch.testing.assert_close(logits_bfloat16.to(torch.float64), logits)
+
+    with pytest.raises(AssertionError):
+        torch.testing.assert_close(
+            stable_softmax(logits_float16).to(torch.float64),
+            stable_softmax(logits),
+        )
+
+    with pytest.raises(AssertionError):
+        torch.testing.assert_close(
+            stable_softmax(logits_bfloat16).to(torch.float64),
+            stable_softmax(logits),
+        )
+
+
+@pytest.mark.parametrize("device", DEVICES)
+def test_cross_entropy_with_unnormalized_targets(device):
+    # Targets probabilities don't add up to 1.
     logits = torch.tensor(
         [
             [1_000_000.0, 1_000_001.0, 999_999.0],
