@@ -3,10 +3,10 @@
 import pytest
 import torch
 
-from src.phase_1.week_1.exercise_4.load_dataset import Dataset
-from src.phase_1.week_1.exercise_4.loss import calc_loss_batch
-from src.phase_1.week_1.exercise_4.model import BigramModel
-from src.phase_1.week_1.exercise_4.tokenizer import CharacterTokenizer
+from src.phase_01.week_01.exercise_04.load_dataset import Dataset
+from src.phase_01.week_01.exercise_04.loss import calc_loss_batch
+from src.phase_01.week_01.exercise_04.model import BigramModel
+from src.phase_01.week_01.exercise_04.tokenizer import CharacterTokenizer
 
 DEVICES = ["cpu"]
 if torch.cuda.is_available():
