@@ -93,6 +93,20 @@ def test_positional_embedding_importance(device: str):
         torch.testing.assert_close(batch_results[0][1], batch_results[1][1])
 
 
+@pytest.mark.parametrize("device", DEVICES)
+def test_positional_embedding_parameter_count(device):
+    vocab_size = 4
+    context_length = 6
+    embedding_dim = 256
+    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length, device)
+
+    # Batch size and actual sequence length do not determine the number of parameters
+    assert model.token_embedder.weight.shape == torch.Size([vocab_size, embedding_dim])
+    assert model.position_embedder.weight.shape == torch.Size(
+        [context_length, embedding_dim]
+    )
+
+
 @pytest.mark.parametrize("vocab_size", [2, 3, 4])
 @pytest.mark.parametrize("context_length", [3, 4, 5])
 @pytest.mark.parametrize("device", DEVICES)
