@@ -254,6 +254,7 @@ def test_non_contiguous_tensors(test_output_index, device):
 
     # Backward pass works with non contiguous tensors
     for grad_custom, grad_reference in zip(grads_custom, grads_reference, strict=True):
+        # Test derivative with respect to each q,k and v
         torch.testing.assert_close(
             grad_custom,
             grad_reference,
