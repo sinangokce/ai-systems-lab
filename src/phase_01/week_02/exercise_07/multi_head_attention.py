@@ -47,10 +47,12 @@ class MultiHeadSelfAttention(torch.nn.Module):
         # Each head generates a projection matrix with D_H dimension
 
         # Insert the extra dimension for number of heads (H)
+        # View operations NEVER allocate new storage
         Q = Q.view(B, T, H, D_H)
         K = K.view(B, T, H, D_H)
         V = V.view(B, T, H, D_H)
         # Ensure semantic meaning
+        # Transpose operations NEVER allocate new storage
         Q = Q.transpose(1, 2)  # shape = (B,H,T,D_H)
         # Q_head0 = | q_00 q_01 |, Q_head1 = | q_02 q_03 |, Q_head2 = | q_04 q_05 |
         #           | q_10 q_11 |            | q_12 q_13 |            | q_14 q_15 |
@@ -62,6 +64,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
         #           | v_10 v_11 |            | v_12 v_13 |            | v_14 v_15 |
 
         # Apply scaled dot-product causal attention
+        # New memory allocation for Attention scores
         attn_scores: torch.Tensor = Q @ K.transpose(-2, -1)
         attn_scores = attn_scores / D_H**0.5
         upper_mask = torch.triu(
@@ -85,5 +88,6 @@ class MultiHeadSelfAttention(torch.nn.Module):
             1, 2
         )  # shape = (B,T,H,D_H), stride = (H*T*D_H, D_H, T*D_H , 1)
         # Merge split outputs from each head
+        # contiguous() allocates new memory for output
         output = output.contiguous().view(B, T, D)  # shape = (B,T,D)
         return self.W_output(output)
