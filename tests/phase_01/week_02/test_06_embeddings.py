@@ -29,8 +29,8 @@ def test_dimensions(
     device: str,
 ):
     positional_embeddings_layer = TokenPositionEmbedding(
-        vocab_size, embedding_dim, context_length, device
-    )
+        vocab_size, embedding_dim, context_length
+    ).to(device)
 
     token_ids = torch.arange(batch_size * seq_length, device=device).view(
         batch_size, seq_length
@@ -71,7 +71,7 @@ def test_positional_embedding_importance(device: str):
     context_length = seq_length + context_margin  # context_length >= seq_length
     embedding_dim = 256
 
-    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length, device)
+    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length).to(device)
 
     batch_results = []
     for batch in token_ids:
@@ -98,7 +98,7 @@ def test_positional_embedding_parameter_count(device):
     vocab_size = 4
     context_length = 6
     embedding_dim = 256
-    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length, device)
+    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length).to(device)
 
     # Batch size and actual sequence length do not determine the number of parameters
     assert model.token_embedder.weight.shape == torch.Size([vocab_size, embedding_dim])
@@ -134,7 +134,7 @@ def test_positional_gradient_accumulation(
     context_margin = context_length - seq_length
     embedding_dim = 256
 
-    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length, device)
+    model = TokenPositionEmbedding(vocab_size, embedding_dim, context_length).to(device)
 
     for batch in token_ids:
         # Zero out gradients after each batch to avoid inter-batches accumulation

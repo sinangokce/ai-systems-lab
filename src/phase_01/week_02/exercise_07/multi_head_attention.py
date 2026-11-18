@@ -26,6 +26,8 @@ class MultiHeadSelfAttention(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, D = x.shape
+        if T < 1:
+            raise ValueError("Sequence must contain at least 1 token.")
         device = x.device
         H = self.num_heads
         D_H = self.head_dim

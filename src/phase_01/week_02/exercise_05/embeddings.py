@@ -5,20 +5,17 @@ import torch
 
 class TokenPositionEmbedding(torch.nn.Module):
     def __init__(
-        self, vocab_size: int, embedding_dim: int, context_length: int, device: str
+        self, vocab_size: int, embedding_dim: int, context_length: int
     ) -> None:
         super().__init__()
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
         self.context_length = context_length
-        self.device = device
 
-        self.token_embedder = torch.nn.Embedding(
-            self.vocab_size, self.embedding_dim, device=self.device
-        )
+        self.token_embedder = torch.nn.Embedding(self.vocab_size, self.embedding_dim)
 
         self.position_embedder = torch.nn.Embedding(
-            self.context_length, self.embedding_dim, device=self.device
+            self.context_length, self.embedding_dim
         )
 
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
