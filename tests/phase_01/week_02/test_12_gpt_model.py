@@ -123,7 +123,7 @@ def test_model_param_count(device):
     # ---->gamma: D
     # ---->beta: D
     # -->FeedForwardNetwork:
-    # ---->expansion: D * (D * EXP_FACTOR) + D
+    # ---->expansion: D * (D * EXP_FACTOR) + D * EXP_FACTOR
     # ---->contraction: (D * EXP_FACTOR) * D + D
 
     # LayerNorm:
