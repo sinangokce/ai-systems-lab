@@ -6,7 +6,7 @@ from loss import calc_loss_batch
 from model import BigramModel
 from tokenizer import CharacterTokenizer
 
-file_path = "/home/singok/Projects/ai-systems-lab/src/data/the-verdict.txt"
+file_path = "src/data/the-verdict.txt"
 batch_size = 8
 seq_length = 64
 stride = 64

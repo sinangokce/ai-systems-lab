@@ -27,8 +27,8 @@ class Dataset:
 
         num_samples = (len(token_ids) - seq_length - 1) // stride + 1
         assert num_samples >= batch_size, (
-            "Not enough samples (len(token_ids) - seq_length - 1) // stride + 1 to form "
-            f"a batch of size {batch_size}. "
+            "Not enough samples (len(token_ids) - seq_length - 1) // stride + 1 to form"
+            f" a batch of size {batch_size}. "
             "Reduce batch_size or provide a longer token_ids sequence."
         )
 
