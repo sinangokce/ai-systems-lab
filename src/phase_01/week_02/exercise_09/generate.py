@@ -23,18 +23,18 @@ def generate(
     """
     model.eval()
 
-    for _ in range(max_new_tokens):
-        # Consider only last context_length tokens
-        input_ids_cropped = input_ids[:, -context_length:]
-        with torch.no_grad():
+    with torch.no_grad():
+        for _ in range(max_new_tokens):
+            # Consider only last context_length tokens
+            input_ids_cropped = input_ids[:, -context_length:]
             outputs = model(input_ids_cropped)
-        last_token_logits = outputs[:, -1, :]
+            last_token_logits = outputs[:, -1, :]
 
-        next_token_ids = torch.argmax(
-            last_token_logits, dim=-1, keepdim=True
-        )  # greedy selection
-        input_ids = torch.cat(
-            [input_ids, next_token_ids],
-            dim=1,
-        )
+            next_token_ids = torch.argmax(
+                last_token_logits, dim=-1, keepdim=True
+            )  # greedy selection
+            input_ids = torch.cat(
+                [input_ids, next_token_ids],
+                dim=1,
+            )
     return input_ids
